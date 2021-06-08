@@ -1,8 +1,9 @@
 'use strict';
 
-window.addEventListener('DOMContentLoaded', () => {
-
-// TABS
+window.addEventListener('DOMContentLoaded', () => {    
+    ///////////////////////////////////////////////////////////////////////////
+    // TABS
+    ///////////////////////////////////////////////////////////////////////////
 
     const tabs = document.querySelectorAll('.tabheader__item'),
           tabsContent = document.querySelectorAll('.tabcontent'),
@@ -43,7 +44,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    ///////////////////////////////////////////////////////////////////////////
     // TIMER
+    ///////////////////////////////////////////////////////////////////////////
 
     const deadline = '2022-01-01';
 
@@ -100,7 +103,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     setClock('.timer', deadline);
 
+    ///////////////////////////////////////////////////////////////////////////
     // MODAL
+    ///////////////////////////////////////////////////////////////////////////
 
     const modalOpenBtn = document.querySelectorAll('[data-modal]'),
         //   modalCloseBtn = document.querySelector('[data-close]'),
@@ -159,8 +164,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // открытие модалки при долистывания до низа страницы
     window.addEventListener('scroll', showModalByScroll);
     
-    // Используем классы для карточки меню
+    ///////////////////////////////////////////////////////////////////////////
+    // СОЗДАНИЕ КАРТОЧЕК МЕНЮ С ПОМОЩЬЮ КЛАССОВ
+    ///////////////////////////////////////////////////////////////////////////
 
+    ///////////
+    // ВАРИАНТ С ДАННЫМИ ДЛЯ КАРТОЧЕК В JS ФАЙЛЕ
+    ////////////
+/*
     const menuField = document.querySelector('.menu__field'),
           menuContainer = menuField.querySelector('.container');
 
@@ -243,8 +254,88 @@ window.addEventListener('DOMContentLoaded', () => {
         'Меню “Постное” - это тщательный подбор ингредиентов: полное отсутствие продуктов животного происхождения, молоко из миндаля, овса, кокоса или гречки, правильное количество белков за счет тофу и импортных вегетарианских стейков.', 
         14
     ).itemRender();
+*/
+    ///////////
+    // ВАРИАНТ С ДАННЫМИ ИЗ ФАЙЛА DB.JSON
+    ///////////
+    
+    const menuField = document.querySelector('.menu__field'),
+          menuContainer = menuField.querySelector('.container');
 
+    class ItemMenu {
+        constructor(imgSrc, imgAlt, title, descr, price, ...classes) {
+            this.imgSrc = imgSrc;
+            this.imgAlt = imgAlt;
+            this.title = title;
+            this.descr = descr;
+            this.price = price;
+            this.classes = classes;
+            this.transfer = 28;
+            this.changeToUAH();
+        }
+
+        changeToUAH() {
+            this.price = this.price * this.transfer;
+        }
+
+        itemRender() {
+            const menuItem = document.createElement('div');
+            // если класс не будет задан пользователем (this.classes.length === 0), то автоматом подставится menu__item,
+            // иначе будет перебираться массив с введенными классами и эти классы будут добавляться новосозданному DIVу
+            if (this.classes.length === 0) {
+                this.classes = 'menu__item';
+                menuItem.classList.add(this.classes);
+            } else {
+                this.classes.forEach(item => {
+                    menuItem.classList.add(item);
+                });
+            }
+            
+            menuItem.innerHTML = `
+                <img src=${this.imgSrc} alt="${this.imgAlt}">
+            <h3 class="menu__item-subtitle">${this.title}</h3>
+            <div class="menu__item-descr">${this.descr}</div>
+            <div class="menu__item-divider"></div>
+            <div class="menu__item-price">
+                <div class="menu__item-cost">Цена:</div>
+                <div class="menu__item-total"><span>${this.price}</span> грн/день</div>
+            </div>`;
+            menuContainer.append(menuItem);
+
+        }
+    }
+
+    const getResource = async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) {
+            throw new Error(`Could not fetch ${url}, status: ${res.status}`);
+        }
+        return await res.json();
+    };
+
+    getResource('http://localhost:3000/menu')
+    .then(data => {
+        data.forEach(({img, altimg, title, descr, price}) => {
+            new ItemMenu(img, altimg, title, descr, price).itemRender();
+        });
+    });
+
+    // ЛИБО С ПОМОЩЬЮ БИБЛИОТЕКИ AXIOS
+    // (подключить в index.html:
+    // <script src="http://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>)
+    // 
+    // axios.get('http://localhost:3000/menu')
+    // .then(data => {
+    //     data.data.forEach(({img, altimg, title, descr, price}) => {
+    //         new ItemMenu(img, altimg, title, descr, price).itemRender();
+    //     });
+    // });
+    
+   
+
+    ///////////////////////////////////////////////////////////////////////////
     // FORMS
+    ///////////////////////////////////////////////////////////////////////////
 
     const forms = document.querySelectorAll('form');
 
@@ -255,13 +346,12 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     forms.forEach(item => {
-        postData(item);
+        bindPostData(item);
     });
 
     function showThanksModal(message) {
         const prevModalDialog = document.querySelector('.modal__dialog');
 
-        
         prevModalDialog.classList.add('hide');
         prevModalDialog.classList.remove('show');
         openModal();
@@ -283,6 +373,7 @@ window.addEventListener('DOMContentLoaded', () => {
             prevModalDialog.classList.remove('hide');
             closeModal();
         }, 4000);
+        
         
     }
 
@@ -371,8 +462,20 @@ window.addEventListener('DOMContentLoaded', () => {
     }
        */
 
+    const postData = async (url, data) => {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json'
+            },
+            body: data
+        });
+
+        return await res.json();
+    };
+
     // FETCH API
-    function postData(form) {
+    function bindPostData(form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
@@ -387,19 +490,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
             const formData = new FormData(form); // сбор данных из формы
 
-            const object = {};
-            formData.forEach(function(value, key) {
-                object[key] = value;
-            });
+            // превращаем полученные данные с формы в массив-массивов, потом в объект и потом в JSON формат
+            const json = JSON.stringify(Object.fromEntries(formData.entries()));
 
-            fetch('server.php', {
-                method: 'POST',
-                headers: {
-                    'Content-type': 'application/json'
-                },
-                body: JSON.stringify(object)
-            })
-            .then(data => data.text())
+            // Пример действия выше
+            // const ooo = {'a': 1, 'b': 2};
+            // const ooo2 = Object.entries(ooo);
+            // console.log(ooo2);
+            // const ooo3 = Object.fromEntries(ooo2);
+            // console.log(ooo3);
+            // const ooo4 = JSON.stringify(ooo3);
+            // console.log(ooo4);
+
+            postData('http://localhost:3000/requests', json)
             .then(data => {
                 console.log(data);
                 showThanksModal(message.success);
@@ -413,15 +516,380 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
     // */
-});
 
+    ///////////////////////////////////////////////////////////////////////////
+    // SLIDER (МОЯ ВЕРСИЯ)
+    ///////////////////////////////////////////////////////////////////////////
+    /*
+    const sliderArea = document.querySelector('.offer__slider'),
+          counterCurrentArea = sliderArea.querySelector('#current'),
+          counterTotalArea = sliderArea.querySelector('#total'),
+          slidersItems = sliderArea.querySelectorAll('.offer__slide'),
+          btnSliderPrev = sliderArea.querySelector('.offer__slider-prev'),
+          btnSliderNext = sliderArea.querySelector('.offer__slider-next');
+    
+    let slideIndex = 1;
+    let slideTotal = slidersItems.length;
 
-fetch('https://jsonplaceholder.typicode.com/posts', {
-    method: 'POST',
-    body: JSON.stringify({name: 'Alex'}),
-    headers: {
-        'Content-type': 'application/json'
+    function sliderFirst() {
+        slidersItems.forEach(slider => {
+            slider.classList.add('hide');
+        });
+        slidersItems[0].classList.remove('hide');
+ 
+        counterDecor(slideIndex, counterCurrentArea);
+        counterDecor(slideTotal, counterTotalArea);
     }
-})
-  .then(response => response.json())
-  .then(json => console.log(json));
+
+    function counterDecor(counter, area) {
+        if (counter < 10) {
+            area.innerHTML = `0${counter}`;
+        } else {
+            area.innerHTML = counter;
+        }
+    }
+
+    sliderFirst();
+
+    btnSliderNext.addEventListener('click', () => {
+        slidersItems[slideIndex - 1].classList.add('hide');  
+        if (slideIndex >= slideTotal) {
+            slideIndex = 1;
+        } else {
+            slideIndex++;
+        }
+        slidersItems[slideIndex - 1].classList.remove('hide');
+          
+        counterDecor(slideIndex, counterCurrentArea);
+    });
+
+    btnSliderPrev.addEventListener('click', () => {
+        slidersItems[slideIndex - 1].classList.add('hide');  
+        if (slideIndex == 1) {
+            slideIndex = slideTotal;
+        } else {
+            slideIndex--;
+        }
+        slidersItems[slideIndex - 1].classList.remove('hide');
+          
+        counterDecor(slideIndex, counterCurrentArea);
+    });
+    */
+
+    ///////////////////////////////////////////////////////////////////////////
+    // SLIDER (ВЕРСИЯ ИВАНА ПЕТРИЧЕНКО)
+    ///////////////////////////////////////////////////////////////////////////
+    /*
+    const slides = document.querySelectorAll('.offer__slide'),
+          prev = document.querySelector('.offer__slider-prev'),
+          next = document.querySelector('.offer__slider-next'),
+          total = document.querySelector('#total'),
+          current = document.querySelector('#current');
+    let slideIndex = 1;
+
+    showSlides(slideIndex);
+    if (slides.length < 10) {
+        total.textContent = `0${slides.length}`;
+    } else {
+        total.textContent = slides.length;
+    }
+
+    function showSlides(n) {
+        if (n > slides.length) {
+            slideIndex = 1;
+        }
+
+        if (n < 1) {
+            slideIndex = slides.length;
+        }
+
+        slides.forEach(item => item.style.display = 'none');
+
+        slides[slideIndex - 1].style.display = 'block';
+
+        if (slides.length < 10) {
+            current.textContent = `0${slideIndex}`;
+        } else {
+            current.textContent = slideIndex;
+        }
+    }
+
+    function plusSlides(n) {
+        showSlides(slideIndex += n);
+    }
+
+    prev.addEventListener('click', () => {
+        plusSlides(-1);
+    });
+
+    next.addEventListener('click', () => {
+        plusSlides(1);
+    });
+    */
+
+    ///////////////////////////////////////////////////////////////////////////
+    // SLIDER В ВИДЕ КАРУСЕЛИ
+    ///////////////////////////////////////////////////////////////////////////
+    // /*
+    const slides = document.querySelectorAll('.offer__slide'),
+          prev = document.querySelector('.offer__slider-prev'),
+          next = document.querySelector('.offer__slider-next'),
+          total = document.querySelector('#total'),
+          current = document.querySelector('#current'),
+          slidesWrapper = document.querySelector('.offer__slider-wrapper'),
+          slidesField = document.querySelector('.offer__slider-inner'),
+          width = window.getComputedStyle(slidesWrapper).width;
+
+    let slideIndex = 1;
+    let offset = 0;
+
+    if (slides.length < 10) {
+        total.textContent = `0${slides.length}`;
+        current.textContent = `0${slideIndex}`;
+    } else {
+        total.textContent = slides.length;
+        current.textContent = slideIndex;
+    }
+
+    slidesField.style.width = 100 * slides.length + '%';
+    slidesField.style.display = 'flex';
+    slidesField.style.transition = '0.5s all';
+
+    slidesWrapper.style.overflow = 'hidden';
+
+    slides.forEach(slide => {
+        slide.style.width = width;
+    });
+
+    function delNotDigits(str) {
+        return +str.replace(/\D/g, '');
+    }
+
+    next.addEventListener('click', () => {
+        // if (offset == +width.replace(/\D/g, '') * (slides.length - 1)) {
+        if (offset == delNotDigits(width) * (slides.length - 1)) {
+            offset = 0;
+        } else {
+            // offset += +width.replace(/\D/g, '');
+            offset += delNotDigits(width);
+        }
+
+        if (slideIndex == slides.length) {
+            slideIndex = 1;
+        } else {
+            slideIndex++;
+        }
+
+        changeSlide(slideIndex, offset);
+    });
+
+    prev.addEventListener('click', () => {
+        if (offset == 0) {
+            // offset = +width.replace(/\D/g, '') * (slides.length - 1);
+            offset = delNotDigits(width) * (slides.length - 1);
+        } else {
+            // offset -= +width.replace(/\D/g, '');
+            offset -= delNotDigits(width);
+        }
+
+        if (slideIndex == 1) {
+            slideIndex = slides.length;
+        } else {
+            slideIndex--;
+        }
+
+        changeSlide(slideIndex, offset);
+    });
+
+    function changeSlide(slideIndex, offset) {
+        slidesField.style.transform = `translateX(-${offset}px)`;
+
+        if (slides.length < 10) {
+            current.textContent = `0${slideIndex}`;
+        } else {
+            current.textContent = slideIndex;
+        }
+
+        dots.forEach(dot => dot.style.opacity = '0.5');
+        dots[slideIndex - 1].style.opacity = 1;
+    }
+
+    // */
+
+    ///////////////////////////////////////////////////////////////////////////
+    // НАВИГАЦИЯ ТОЧКИ НА СЛАЙДЕРЕ
+    ///////////////////////////////////////////////////////////////////////////
+    // const slidesWrapper = document.querySelector('.offer__slider-wrapper');
+    slidesWrapper.style.position = 'relative';
+
+    const dottesArea = document.createElement('ol'),
+          dots = [];
+
+    dottesArea.classList.add('carousel-indicators');
+
+    slidesWrapper.append(dottesArea);
+
+    for (let i = 0; i < slides.length; i++) {
+        let dot = document.createElement('li');
+        dot.setAttribute('data-slide-to', i + 1);
+        dot.classList.add('dot');
+        dottesArea.append(dot);
+
+        if (i == 0) {
+            dot.style.opacity = 1;
+        }
+        dots.push(dot);
+    }
+
+    dots.forEach(dot => {
+        dot.addEventListener('click', (e) => {
+            const slideTo = e.target.getAttribute('data-slide-to');
+
+            slideIndex = slideTo;
+            // offset = +width.replace(/\D/g, '') * (slideTo - 1);
+            offset = delNotDigits(width) * (slideTo - 1);
+            
+
+            changeSlide(slideIndex, offset);
+        });
+    });
+
+    fetch('https://jsonplaceholder.typicode.com/posts', {
+        method: 'POST',
+        body: JSON.stringify({name: 'Alex'}),
+        headers: {
+            'Content-type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(json => console.log(json));
+
+
+    // привязка локального json сервера
+    // в терминале набираем npx json-server db.json и берем оттуда ссылку
+    fetch('http://localhost:3000/menu')
+        .then(data => data.json())
+        .then(res => console.log(res));
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    // КАЛЬКУЛЯТОР
+    ///////////////////////////////////////////////////////////////////////////
+
+    const result = document.querySelector('.calculating__result span');
+    
+    let sex, height, weight, age, ratio;
+
+    // если есть данные в localStorage, то присваиваем значениям sex и ratio эти данные
+    // если данных нет, то ставим значения по умолчанию - female и 1.375
+    if (localStorage.getItem('sex')) {
+        sex = localStorage.getItem('sex');
+    } else {
+        sex = 'female';
+        localStorage.setItem('sex', 'female');
+    }
+
+    if (localStorage.getItem('ratio')) {
+        ratio = localStorage.getItem('ratio');
+    } else {
+        ratio = 1.375;
+        localStorage.setItem('ratio', 1.375);
+    }
+
+    // инициализация начальных значений - переключение активных классов исходя из начальных данных
+    function initLocalSettings(selector, activeClass) {
+        const elements = document.querySelectorAll(selector);
+
+        elements.forEach(elem => {
+            elem.classList.remove(activeClass);
+            if (elem.getAttribute('id') === localStorage.getItem('sex')) {
+                elem.classList.add(activeClass);
+            }
+            if (elem.getAttribute('data-ratio') === localStorage.getItem('ratio')) {
+                elem.classList.add(activeClass);
+            }
+        });
+    }
+
+    initLocalSettings('#gender div', 'calculating__choose-item_active');
+    initLocalSettings('.calculating__choose_big div', 'calculating__choose-item_active');
+    
+    // функция, которая отвечает за пересчет суточной нормы калорий
+    function calcTotal() {
+        if (!sex || !height || !weight || !age || !ratio) {
+            result.textContent = '____';
+            return;
+        }
+    
+        if (sex == 'female') {
+            result.textContent = Math.round((447.6 + (9.2 * weight) + (3.1 * height) - (4.3 * age)) * ratio);
+        } else {
+            result.textContent = Math.round((88.36 + (13.4 * weight) + (4.8 * height) - (5.7 * age)) * ratio);
+        }
+    }
+    
+    calcTotal();
+
+    // функция, которая отслеживает нажатия на плашки физической активности, изменяет активные классы
+    // и присваивает значение переменным sex и ratio
+    function getStaticInformation(selector, activeClass) {
+        const elements = document.querySelectorAll(selector);
+
+        elements.forEach(elem => {
+            elem.addEventListener('click', (e) => {
+                if (e.target.getAttribute('data-ratio')) {
+                    ratio = +e.target.getAttribute('data-ratio');
+                    localStorage.setItem('ratio', +e.target.getAttribute('data-ratio'));
+                } else {
+                    sex = e.target.getAttribute('id');
+                    localStorage.setItem('sex', e.target.getAttribute('id'));
+                }
+    
+                elements.forEach(elem => {
+                    elem.classList.remove(activeClass);
+                });
+    
+                e.target.classList.add(activeClass);
+    
+                calcTotal();
+            });
+        });
+    }
+
+    getStaticInformation('#gender div', 'calculating__choose-item_active');
+    getStaticInformation('.calculating__choose_big div', 'calculating__choose-item_active');
+
+
+    // функция, которая отслеживает введенные данные в инпуты (рост, вес, возраст), присваивает значения
+    // переменным height, weight и age
+    function getDynamicInformation(selector) {
+        const input = document.querySelector(selector);
+
+        input.addEventListener('input', () => {
+
+            if (input.value.match(/\D/g)) {
+                input.style.border = '1px solid red';
+            } else {
+                input.style.border = 'none';
+            }
+
+           switch(input.getAttribute('id')) {
+                case 'height':
+                     height = +input.value;
+                    break;
+                case 'weight':
+                    weight = +input.value;
+                    break;
+                case 'age':
+                    age = +input.value;
+                    break;
+           }
+
+           calcTotal();
+        });
+    }
+
+    getDynamicInformation('#height');
+    getDynamicInformation('#weight');
+    getDynamicInformation('#age');
+});
